@@ -84,7 +84,7 @@ namespace ClinicaEstetica.DAL
             {
                 Conectar();
                 string sql = "SELECT *FROM TipoUsuario;";
-                command = new SqlCommand(sql,conexao);
+                command = new SqlCommand(sql, conexao);
                 dataReader = command.ExecuteReader();
                 List<TipoUsuarioDTO> lista = new List<TipoUsuarioDTO>();
 
@@ -101,6 +101,142 @@ namespace ClinicaEstetica.DAL
             {
 
                 throw;
+            }
+        }
+
+        public void Create(UsuarioDTO usuario)
+        {
+            try
+            {
+                Conectar();
+                string sql = "INSERT INTO Usuario (IdTipoUsuario, Nome, Email, Senha, Status) VALUES (@idTipo, @nome, @email, @senha, @status)";
+                command = new SqlCommand(sql, conexao);
+
+                command.Parameters.AddWithValue("@idTipo", usuario.IdTipoUsuario);
+                command.Parameters.AddWithValue("@nome", usuario.Nome);
+                command.Parameters.AddWithValue("@email", usuario.Email);
+                command.Parameters.AddWithValue("@senha", usuario.Senha);
+                command.Parameters.AddWithValue("@status", usuario.Status);
+
+                command.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+
+                throw new Exception($"Erro ao criar usuário: {ex.Message}");
+            }
+            finally
+            {
+                Desconectar();
+            }
+        }
+
+        public void Update(UsuarioDTO usuario)
+        {
+            try
+            {
+                Conectar();
+                string sql = "UPDATE Usuario SET IdTipoUsuario = @idTipo, Nome = @nome, Email = @email, Senha = @senha, Status = @status, WHERE IdUsario = @idUsuario";
+                command = new SqlCommand(sql, conexao);
+
+                command.Parameters.AddWithValue("@idTipo", usuario.IdTipoUsuario);
+                command.Parameters.AddWithValue("@nome", usuario.Nome);
+                command.Parameters.AddWithValue("@email", usuario.Email);
+                command.Parameters.AddWithValue("@senha", usuario.Senha);
+                command.Parameters.AddWithValue("@status", usuario.Status);
+                command.Parameters.AddWithValue("@idUsuario", usuario.IdUsuario);
+
+                command.ExecuteNonQuery();
+
+            }
+            catch (Exception ex)
+            {
+
+                throw new Exception($"Erro ao criar usuário: {ex.Message}");
+            }
+            finally
+            {
+                Desconectar();
+            }
+        }
+
+        public UsuarioDTO Pesquisar(int id)
+        {
+            try
+            {
+                Conectar();
+                String sql = "SELECT *FROM Usuario WHERE IdUsuario=@idUsuario";
+                command = new SqlCommand(sql, conexao);
+                command.Parameters.AddWithValue("@idUsuario", id);
+                dataReader = command.ExecuteReader();
+
+                UsuarioDTO usuarioDTO = null;
+                if (dataReader.Read())
+                {
+                    usuarioDTO = new UsuarioDTO();
+
+                    usuarioDTO.IdUsuario = Convert.ToInt32(dataReader["IdUsuario"]);
+                    usuarioDTO.IdTipoUsuario = Convert.ToInt32(dataReader["IdTipoUsuario"]);
+                    usuarioDTO.Nome = dataReader["Nome"].ToString();
+                    usuarioDTO.Email = dataReader["Email"].ToString();
+                    usuarioDTO.Senha = dataReader["Senha"].ToString();
+                    usuarioDTO.Status = Convert.ToBoolean(dataReader["Status"]);
+                }
+                return usuarioDTO;
+
+            }
+            catch (Exception ex)
+            {
+
+                throw new Exception($"Erro ao buscar usuario: {ex.Message}");
+            }
+            finally
+            {
+                Desconectar();
+            }
+        }
+
+        public void Delete(int id)
+        {
+            SqlTransaction transacao =null;
+            try
+            {
+                Conectar();
+                transacao = conexao.BeginTransaction();
+
+                //1. Excluir AgendamentoServico
+                using (SqlCommand cmd1 = new SqlCommand($"SELECT*FROM AgendamentoServico " +
+                    $"WHERE IdAgendamento IN(SELECT IdAgendamento FROM Agendamento WHERE IdUsuarioCadastro=@id", conexao, transacao))
+                {
+                    cmd1.Parameters.AddWithValue("@id", id);
+                    cmd1.ExecuteNonQuery();
+                }
+
+                //2. Excluir Agendamento
+                using (SqlCommand cmd2 = new SqlCommand($"DELETE FROM Agendamento WHERE IdUsuarioCadastro=@id", conexao, transacao))
+                {
+                    cmd2.Parameters.AddWithValue("@id", id);
+                    cmd2.ExecuteNonQuery();
+                }
+
+                //3. Excluir Usuario
+                using (SqlCommand cmd3 = new SqlCommand($"DELETE FROM Usuario WHERE IdUsuario=@id", conexao, transacao))
+                {
+                    cmd3.Parameters.AddWithValue("@id", id);
+                    cmd3.ExecuteNonQuery();
+                }
+                transacao.Commit();
+            }
+
+            catch (Exception ex)
+            {
+                transacao?.Rollback();
+                throw new Exception($"Erro ao excluir usuário e dados relacionados:{ex.Message}");
+            }
+            finally { 
+            }
+            {
+                Desconectar();
             }
         }
     }
